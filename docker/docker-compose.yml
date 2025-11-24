@@ -1,0 +1,109 @@
+version: "3.9"
+
+# This docker-compose file supports multi-project namespacing.
+# Use COMPOSE_PROJECT_NAME environment variable to isolate projects.
+#
+# Example:
+#   COMPOSE_PROJECT_NAME=datagoose-power-plants docker compose up -d postgres
+#
+# This will create:
+#   - Container: datagoose-power-plants-postgres-1
+#   - Volume: datagoose-power-plants_postgres_data
+#   - Network: datagoose-power-plants_default
+
+services:
+  # PostgreSQL Database
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-datagoose}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ../data:/data:ro
+      - ../projects:/projects:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d datagoose"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Python ETL Environment
+  etl:
+    build:
+      context: ./etl
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-datagoose}
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ../src/etl:/app/src/etl
+      - ../framework/etl:/app/framework/etl
+      - ../projects:/app/projects
+      - ../data:/app/data
+      - ../schemas:/app/schemas
+      - ../tests/etl:/app/tests/etl
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+  # TypeScript REST API
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-datagoose}
+      PORT: ${API_PORT:-3001}
+    ports:
+      - "${API_PORT:-3001}:${API_PORT:-3001}"
+    volumes:
+      - ../src/api:/app
+      - ../framework/api:/framework/api
+      - ../projects:/projects
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:${API_PORT:-3001}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # React UI
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:${API_PORT:-3001}/api
+    ports:
+      - "${UI_PORT:-5174}:5173"
+    volumes:
+      - ../src/ui:/app
+      - ../framework/ui:/framework/ui
+      - ../projects:/projects
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+    # Volume name will be prefixed with COMPOSE_PROJECT_NAME
+    # e.g., datagoose-power-plants_postgres_data
+
+# Network is auto-created with COMPOSE_PROJECT_NAME prefix
+# e.g., datagoose-power-plants_default

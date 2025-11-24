@@ -1,0 +1,31 @@
+cust_id,cust_name,email,phone,status,created_dt,last_order_amt,notes
+C001,Smith, John,john.smith@email.com,555-123-4567,A,01/15/2020,1250.00,VIP customer since 2020
+C002,Jane Doe,jane.doe@company.org,(555) 234-5678,A,2020-03-22,890.50,Preferred shipping
+C003,Bob Wilson,bob.wilson@test.net,5553456789,I,15-Mar-2019,0.00,Account closed - moved
+C004,Alice Johnson,ALICE.JOHNSON@EMAIL.COM,555.456.7890,A,04/01/2021,2340.75,Corporate account
+C005,Charlie Brown,,555-567-8901,P,2021-06-15,0.00,Pending verification
+C006,Davis, Emma,emma.d@sample.io,(555) 678-9012,A,07/20/2021,567.25,
+C007,Frank Miller,frank.miller@domain.com,555-789-0123,S,2019-11-30,150.00,Payment issues - suspended
+C008,Grace Lee,grace.lee@example.com,5558901234,A,08-Dec-2020,3200.00,Premium member
+C009,Wilson, Henry,henry.w@mail.com,(555) 901-2345,A,2022-01-10,445.80,Referral program
+C010,Ivy Chen,ivy.chen@business.net,555-012-3456,A,02/28/2022,1890.25,International shipping
+C011,Martinez, Jack,jack.m@email.org,5551234567,I,2018-05-15,0.00,Inactive > 2 years
+C012,Kate Brown,kate.brown@sample.com,(555) 135-7924,A,03/15/2022,678.90,
+C013,Liam O'Connor,liam.oconnor@test.io,555-246-8135,A,2022-04-20,1234.56,Special characters in name
+C014,Mia Garcia,,555.357.9246,P,05/01/2022,0.00,Missing email - follow up
+C015,Noah Kim,noah.kim@domain.net,(555) 468-0357,A,2022-06-30,2100.00,High value customer
+C016,Olivia Patel,olivia.p@email.com,5555791468,A,07/15/2022,890.00,
+C017,Singh, Peter,peter.singh@company.org,555-680-2579,D,2017-09-01,0.00,Deleted - duplicate of C018
+C018,Peter Singh,p.singh@company.org,(555) 680-2579,A,2017-08-15,4500.00,Primary account
+C019,Quinn Adams,quinn.adams@sample.net,555-791-3680,A,2022-08-20,567.80,New customer
+C020,Rachel White,rachel.w@business.io,5558024691,A,09/01/2022,1345.00,Corporate discount applied
+C021,Thompson, Sam,sam.t@email.net,(555) 913-5702,A,2022-09-15,234.50,
+C022,Tina Roberts,tina.roberts@test.com,555-024-6813,I,2019-12-01,0.00,Requested account closure
+C023,Uma Sharma,uma.sharma@domain.org,5551357924,A,10/10/2022,789.00,
+C024,Green, Victor,victor.green@mail.io,(555) 246-8135,A,2022-10-25,1567.25,Bulk orders
+C025,Wendy Taylor,wendy.t@sample.com,555-357-9246,A,11/01/2022,445.00,
+C026,Xavier Lopez,xavier.l@email.org,5554680357,P,2022-11-15,0.00,Verification pending
+C027,Young, Yuki,yuki.young@company.net,(555) 579-1468,A,2022-12-01,2890.50,International customer
+C028,Zoe Williams,zoe.williams@test.io,555-680-2579,A,12/15/2022,1234.00,
+C029,Anderson, Amy,amy.anderson@domain.com,5557913680,A,01/05/2023,567.90,New year signup
+C030,Brian Clark,brian.c@email.net,(555) 802-4691,A,2023-01-20,890.25,Referred by C009

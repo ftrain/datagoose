@@ -1,0 +1,122 @@
+#!/bin/bash
+# Datagoose CLI
+# Main entry point for project lifecycle management
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/utils.sh"
+
+show_help() {
+    echo "Datagoose CLI - Data Migration Framework"
+    echo ""
+    echo "Usage: dg <project> <command> [options]"
+    echo "       dg <command> [options]"
+    echo ""
+    echo "Global Commands:"
+    echo "  list              List available projects"
+    echo "  create <name>     Create a new project"
+    echo "  help              Show this help message"
+    echo ""
+    echo "Project Commands:"
+    echo "  setup [--migrate] Initialize project (start services, optionally run migration)"
+    echo "  start             Start all services"
+    echo "  stop              Stop services (preserve data)"
+    echo "  restart           Restart all services"
+    echo "  teardown [opts]   Complete cleanup"
+    echo "    --force         Skip confirmation"
+    echo "    --keep-data     Keep database volume"
+    echo "  status [--json]   Show service status"
+    echo "  logs [service]    View logs (optional: api, ui, db)"
+    echo "    -f              Follow log output"
+    echo "  migrate           Run ETL pipeline"
+    echo "  reset             Reset database (drop and recreate)"
+    echo "  test [suite]      Run tests (etl, api, ui, e2e, or all)"
+    echo ""
+    echo "Examples:"
+    echo "  dg power-plants setup --migrate"
+    echo "  dg power-plants status"
+    echo "  dg power-plants logs api -f"
+    echo "  dg power-plants teardown --force"
+    echo "  dg create my-project"
+}
+
+# Main command handler
+main() {
+    local cmd="${1:-}"
+
+    # Handle global commands first
+    case "$cmd" in
+        ""|help|--help|-h)
+            show_help
+            exit 0
+            ;;
+        list)
+            print_header "Available Projects"
+            list_projects
+            exit 0
+            ;;
+        create)
+            local name="${2:-}"
+            if [ -z "$name" ]; then
+                print_error "Project name required"
+                echo "Usage: dg create <project-name>"
+                exit 1
+            fi
+            exec "$SCRIPT_DIR/create-project.sh" "$name"
+            ;;
+    esac
+
+    # All other commands require a project
+    local project="$1"
+    local command="${2:-}"
+    shift 2 2>/dev/null || true
+
+    validate_project "$project"
+
+    case "$command" in
+        setup)
+            exec "$SCRIPT_DIR/setup.sh" "$project" "$@"
+            ;;
+        start)
+            exec "$SCRIPT_DIR/start.sh" "$project" "$@"
+            ;;
+        stop)
+            exec "$SCRIPT_DIR/stop.sh" "$project" "$@"
+            ;;
+        restart)
+            "$SCRIPT_DIR/stop.sh" "$project"
+            exec "$SCRIPT_DIR/start.sh" "$project" "$@"
+            ;;
+        teardown)
+            exec "$SCRIPT_DIR/teardown.sh" "$project" "$@"
+            ;;
+        status)
+            exec "$SCRIPT_DIR/status.sh" "$project" "$@"
+            ;;
+        logs)
+            exec "$SCRIPT_DIR/logs.sh" "$project" "$@"
+            ;;
+        migrate)
+            exec "$SCRIPT_DIR/migrate.sh" "$project" "$@"
+            ;;
+        reset)
+            exec "$SCRIPT_DIR/reset.sh" "$project" "$@"
+            ;;
+        test)
+            exec "$SCRIPT_DIR/test.sh" "$project" "$@"
+            ;;
+        "")
+            print_error "No command specified"
+            echo "Use 'dg $project help' or 'dg help' for usage"
+            exit 1
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo "Use 'dg help' for available commands"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

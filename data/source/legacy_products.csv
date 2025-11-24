@@ -1,0 +1,21 @@
+sku,name,description,category,price,cost,stock_qty,weight_oz,is_active,created_date
+SKU-001,Widget Pro,Professional grade widget for industrial use,Widgets,49.99,22.50,150,8.5,Y,2019-01-15
+SKU-002,Widget Basic,Entry-level widget for home use,Widgets,24.99,10.00,500,4.2,Y,2019-01-15
+SKU-003,Gadget Deluxe,Premium gadget with advanced features,Gadgets,149.99,65.00,75,16.0,Y,2019-03-01
+SKU-004,Gadget Standard,Standard gadget for everyday use,Gadgets,79.99,35.00,200,12.0,Y,2019-03-01
+SKU-005,Gizmo X1,First generation gizmo,Gizmos,199.99,90.00,25,24.0,N,2018-06-01
+SKU-006,Gizmo X2,Second generation gizmo with improvements,Gizmos,249.99,110.00,100,22.0,Y,2020-01-15
+SKU-007,Thingamajig,Multi-purpose thingamajig,Accessories,14.99,5.00,1000,2.0,Y,2019-06-01
+SKU-008,Doohickey Set,Complete set of doohickeys,Accessories,34.99,12.00,300,6.5,Y,2019-06-01
+SKU-009,Whatchamacallit,Universal whatchamacallit adapter,Adapters,19.99,7.50,450,3.0,Y,2020-03-01
+SKU-010,Contraption Mini,Compact contraption for small spaces,Contraptions,89.99,40.00,80,10.0,Y,2020-06-01
+SKU-011,Contraption Max,Large contraption for industrial use,Contraptions,299.99,135.00,30,48.0,Y,2020-06-01
+SKU-012,Widget Pro Plus,Enhanced widget pro with extra features,Widgets,69.99,32.00,100,9.0,Y,2021-01-01
+SKU-013,Gadget Mini,Compact gadget for travel,Gadgets,59.99,25.00,175,6.0,Y,2021-03-01
+SKU-014,Gizmo X3,Third generation gizmo - latest model,Gizmos,349.99,155.00,50,20.0,Y,2022-01-01
+SKU-015,Accessory Pack,Bundle of essential accessories,Accessories,44.99,15.00,250,8.0,Y,2021-06-01
+SKU-016,Adapter Universal,Works with all devices,Adapters,29.99,12.00,400,4.0,Y,2021-09-01
+SKU-017,Widget Enterprise,Enterprise-grade widget solution,Widgets,149.99,70.00,40,12.0,Y,2022-03-01
+SKU-018,Gadget Pro,Professional gadget for experts,Gadgets,199.99,90.00,60,14.0,Y,2022-06-01
+SKU-019,Starter Kit,Everything you need to get started,Kits,99.99,45.00,120,20.0,Y,2022-01-01
+SKU-020,Ultimate Bundle,Complete solution bundle,Kits,499.99,225.00,25,64.0,Y,2022-09-01
