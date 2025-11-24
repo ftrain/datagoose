@@ -1,0 +1,31 @@
+order_id,customer_id,order_date,ship_date,status,total,currency,shipping_addr,notes
+ORD-10001,C001,01/20/2020,01/22/2020,D,450.00,USD,"123 Main St, New York, NY 10001",First order
+ORD-10002,C001,03/15/2020,03/17/2020,D,800.00,USD,"123 Main St, New York, NY 10001",
+ORD-10003,C002,03/25/2020,03/28/2020,D,890.50,USD,"456 Oak Ave, Los Angeles, CA 90001",Express shipping
+ORD-10004,C004,04/10/2021,04/12/2021,D,1200.00,USD,"789 Corporate Blvd, Chicago, IL 60601",Corporate PO #12345
+ORD-10005,C004,05/01/2021,05/03/2021,D,1140.75,USD,"789 Corporate Blvd, Chicago, IL 60601",
+ORD-10006,C006,08/01/2021,08/04/2021,D,567.25,USD,"321 Pine St, Seattle, WA 98101",
+ORD-10007,C008,12/20/2020,12/22/2020,D,1500.00,USD,"654 Maple Dr, Boston, MA 02101",Holiday order
+ORD-10008,C008,06/15/2021,06/17/2021,D,1700.00,USD,"654 Maple Dr, Boston, MA 02101",Premium member discount
+ORD-10009,C009,01/15/2022,01/18/2022,D,445.80,USD,"987 Cedar Ln, Denver, CO 80201",
+ORD-10010,C010,03/01/2022,03/05/2022,D,1890.25,USD,"159 International Way, Miami, FL 33101",International - customs cleared
+ORD-10011,C012,03/20/2022,03/22/2022,D,678.90,USD,"753 Birch Rd, Portland, OR 97201",
+ORD-10012,C013,04/25/2022,04/27/2022,D,1234.56,USD,"852 Elm St, Austin, TX 78701",
+ORD-10013,C015,07/05/2022,07/07/2022,D,2100.00,USD,"951 Walnut Ave, San Francisco, CA 94101",High value - signature required
+ORD-10014,C016,07/20/2022,07/22/2022,D,890.00,USD,"147 Spruce Ct, Phoenix, AZ 85001",
+ORD-10015,C018,08/01/2022,08/03/2022,D,2000.00,USD,"258 Redwood Blvd, San Diego, CA 92101",
+ORD-10016,C018,09/15/2022,09/18/2022,D,2500.00,USD,"258 Redwood Blvd, San Diego, CA 92101",Bulk order
+ORD-10017,C019,08/25/2022,08/27/2022,D,567.80,USD,"369 Aspen Way, Salt Lake City, UT 84101",
+ORD-10018,C020,09/05/2022,09/07/2022,D,1345.00,USD,"471 Sequoia Dr, Atlanta, GA 30301",Corporate rate applied
+ORD-10019,C021,09/20/2022,09/22/2022,D,234.50,USD,"582 Cypress Ln, Nashville, TN 37201",
+ORD-10020,C023,10/15/2022,10/17/2022,D,789.00,USD,"693 Willow St, Minneapolis, MN 55401",
+ORD-10021,C024,10/30/2022,11/02/2022,D,1567.25,USD,"714 Magnolia Ave, Detroit, MI 48201",Bulk - 3 day ship
+ORD-10022,C025,11/05/2022,11/07/2022,D,445.00,USD,"825 Dogwood Ct, Cleveland, OH 44101",
+ORD-10023,C027,12/05/2022,12/10/2022,D,2890.50,USD,"936 Cherry Blossom Rd, Honolulu, HI 96801",International - Hawaii
+ORD-10024,C028,12/20/2022,12/22/2022,D,1234.00,USD,"147 Palm Dr, Tampa, FL 33601",Holiday rush
+ORD-10025,C029,01/10/2023,01/12/2023,D,567.90,USD,"258 Oak Grove, Dallas, TX 75201",New customer
+ORD-10026,C030,01/25/2023,01/27/2023,D,890.25,USD,"369 Pinecone Way, Charlotte, NC 28201",Referral discount
+ORD-10027,C001,02/01/2023,,P,350.00,USD,"123 Main St, New York, NY 10001",Processing
+ORD-10028,C015,02/05/2023,,P,1800.00,USD,"951 Walnut Ave, San Francisco, CA 94101",Awaiting payment
+ORD-10029,C018,02/10/2023,,S,1500.00,USD,"258 Redwood Blvd, San Diego, CA 92101",Shipped today
+ORD-10030,C027,02/15/2023,,S,1200.00,USD,"936 Cherry Blossom Rd, Honolulu, HI 96801",In transit
