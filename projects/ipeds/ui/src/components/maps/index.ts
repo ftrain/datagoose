@@ -1,0 +1,1 @@
+export { InstitutionMap } from './InstitutionMap';

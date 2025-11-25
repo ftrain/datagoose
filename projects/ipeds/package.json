@@ -1,0 +1,33 @@
+{
+  "name": "ipeds",
+  "version": "1.0.0",
+  "description": "IPEDS data explorer API and frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/api/index.ts",
+    "dev:ui": "cd ui && npm run dev",
+    "build": "tsc && cd ui && npm run build",
+    "start": "node dist/api/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": ["ipeds", "education", "data"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.13"
+  }
+}

@@ -234,7 +234,7 @@ CREATE TABLE IF NOT EXISTS financial_aid (
     year INTEGER NOT NULL,
     undergrad_enrolled INTEGER,
     pell_recipients INTEGER,
-    pell_pct NUMERIC(5,4) GENERATED ALWAYS AS (
+    pell_pct NUMERIC(7,4) GENERATED ALWAYS AS (
         CASE WHEN undergrad_enrolled > 0
         THEN pell_recipients::numeric / undergrad_enrolled
         ELSE NULL END
