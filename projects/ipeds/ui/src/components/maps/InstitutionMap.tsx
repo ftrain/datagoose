@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -122,7 +123,12 @@ export function InstitutionMap({
           >
             <Popup>
               <div className="text-sm">
-                <strong className="block">{institution.name}</strong>
+                <Link
+                  to={`/institutions/${institution.unitid}`}
+                  className="font-semibold text-blue-600 hover:underline block"
+                >
+                  {institution.name}
+                </Link>
                 {institution.city && institution.state && (
                   <span className="text-gray-600">{institution.city}, {institution.state}</span>
                 )}

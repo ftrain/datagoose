@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { errorHandler } from './middleware/error.js';
 import institutionsRouter from './routes/institutions.js';
 import admissionsRouter from './routes/admissions.js';
@@ -13,13 +16,23 @@ import statsRouter from './routes/stats.js';
 import queryRouter from './routes/query.js';
 import exploreRouter from './routes/explore.js';
 import cipRouter from './routes/cip.js';
+import historicRouter from './routes/historic.js';
+import authRouter from './routes/auth.js';
+import dictionaryRouter from './routes/dictionary.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? true : ['http://localhost:5173', 'http://localhost:3001'],
+  credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -27,6 +40,7 @@ app.get('/health', (_req, res) => {
 });
 
 // API routes
+app.use('/api/auth', authRouter);
 app.use('/api/institutions', institutionsRouter);
 app.use('/api/admissions', admissionsRouter);
 app.use('/api/enrollment', enrollmentRouter);
@@ -38,6 +52,22 @@ app.use('/api/stats', statsRouter);
 app.use('/api/query', queryRouter);
 app.use('/api/explore', exploreRouter);
 app.use('/api/cip', cipRouter);
+app.use('/api/historic', historicRouter);
+app.use('/api/dictionary', dictionaryRouter);
+
+// Serve static UI files in production
+if (process.env.NODE_ENV === 'production') {
+  const uiPath = path.join(__dirname, '..', '..', 'ui', 'dist');
+  app.use(express.static(uiPath));
+
+  // SPA fallback - serve index.html for all non-API routes
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(path.join(uiPath, 'index.html'));
+  });
+}
 
 // Error handling
 app.use(errorHandler);
@@ -83,6 +113,22 @@ app.listen(PORT, () => {
   console.log('  GET /api/cip/search');
   console.log('  GET /api/cip/:code');
   console.log('  GET /api/cip/:code/institutions');
+  console.log('  GET /api/historic/coverage');
+  console.log('  GET /api/historic/enrollment');
+  console.log('  GET /api/historic/enrollment/:unitid');
+  console.log('  GET /api/historic/completions');
+  console.log('  GET /api/historic/completions/by-field');
+  console.log('  GET /api/historic/graduation');
+  console.log('  GET /api/historic/graduation/:unitid');
+  console.log('  GET /api/historic/institutions');
+  console.log('  GET /api/historic/institutions/:unitid');
+  console.log('  GET /api/historic/trends/combined');
+  console.log('  GET /api/dictionary');
+  console.log('  GET /api/dictionary/tables');
+  console.log('  GET /api/dictionary/tables/:table');
+  console.log('  GET /api/dictionary/search');
+  console.log('  GET /api/dictionary/stats');
+  console.log('  POST /api/dictionary/ask');
 });
 
 export default app;

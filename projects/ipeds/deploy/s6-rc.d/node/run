@@ -1,0 +1,13 @@
+#!/command/execlineb -P
+with-contenv
+
+# Wait for PostgreSQL to be ready
+foreground {
+  loopwhilex -x 0
+  pg_isready -h localhost -U postgres
+  sleep 1
+}
+
+# Start Node.js API server
+cd /app
+exec node dist/api/index.js

@@ -1,7 +1,7 @@
 """
-Load IPEDS 2023 data into PostgreSQL.
+Load IPEDS 2023 raw data into PostgreSQL.
 
-Quick and dirty first pass - we'll iterate from here.
+Creates staging tables from ZIP files with ETL tracking.
 """
 
 import logging
@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pandas as pd
 import psycopg2
-from psycopg2 import sql
 from io import StringIO
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
@@ -20,6 +19,19 @@ logger = logging.getLogger(__name__)
 RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
 CONN_STRING = "host=localhost port=5433 dbname=datagoose user=postgres password=postgres"
 
+# Files to load for 2023
+FILES_2023 = [
+    ("HD2023.zip", "hd2023", "Institutional directory"),
+    ("ADM2023.zip", "adm2023", "Admissions data"),
+    ("GR2023.zip", "gr2023", "Graduation rates"),
+    ("GR2023_PELL_SSL.zip", "gr2023_pell_ssl", "Pell graduation rates"),
+    ("EF2023A.zip", "ef2023a", "Fall enrollment by race/gender"),
+    ("EF2023B.zip", "ef2023b", "Fall enrollment by age"),
+    ("C2023_A.zip", "c2023_a", "Completions by CIP"),
+    ("SFA2223.zip", "sfa2223", "Student financial aid"),
+    ("IC2023.zip", "ic2023", "Institutional characteristics"),
+]
+
 
 def extract_csv_from_zip(zip_path: Path, encoding: str = "latin-1") -> pd.DataFrame:
     """Extract CSV from zip file."""
@@ -28,8 +40,15 @@ def extract_csv_from_zip(zip_path: Path, encoding: str = "latin-1") -> pd.DataFr
         with zf.open(csv_name) as f:
             df = pd.read_csv(f, encoding=encoding, low_memory=False)
 
-    # Clean column names - strip BOM, lowercase
-    df.columns = [c.replace("\ufeff", "").strip().lower() for c in df.columns]
+    # Clean column names - strip BOM (appears in various encodings), lowercase
+    df.columns = [
+        c.replace("\ufeff", "")  # UTF-8 BOM as unicode
+         .replace("\xef\xbb\xbf", "")  # UTF-8 BOM as bytes
+         .replace("ï»¿", "")  # UTF-8 BOM read as latin-1
+         .strip()
+         .lower()
+        for c in df.columns
+    ]
     return df
 
 
@@ -68,95 +87,110 @@ def copy_df_to_table(conn, table_name: str, df: pd.DataFrame):
     conn.commit()
 
 
-def load_hd2023(conn):
-    """Load institutional directory."""
-    logger.info("Loading HD2023 (institutions)...")
-    df = extract_csv_from_zip(RAW_DIR / "HD2023.zip")
-    logger.info(f"  {len(df)} institutions, {len(df.columns)} columns")
+def load_file(conn, zip_name: str, table_name: str, run_id: int) -> int:
+    """Load a single ZIP file into a table with ETL tracking."""
+    zip_path = RAW_DIR / zip_name
 
-    create_table_from_df(conn, "hd2023", df)
-    copy_df_to_table(conn, "hd2023", df)
-    logger.info("  Done")
-    return len(df)
+    if not zip_path.exists():
+        logger.warning(f"  File not found: {zip_name}, skipping")
+        return 0
 
+    # Start table log
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT etl_log_table_start(%s, %s, %s, %s, NULL)",
+            (run_id, table_name, "load", zip_name)
+        )
+        log_id = cur.fetchone()[0]
+    conn.commit()
 
-def load_adm2023(conn):
-    """Load admissions data."""
-    logger.info("Loading ADM2023 (admissions)...")
-    df = extract_csv_from_zip(RAW_DIR / "ADM2023.zip")
-    logger.info(f"  {len(df)} records, {len(df.columns)} columns")
+    try:
+        logger.info(f"Loading {zip_name} -> {table_name}...")
+        df = extract_csv_from_zip(zip_path)
+        logger.info(f"  {len(df)} rows, {len(df.columns)} columns")
 
-    create_table_from_df(conn, "adm2023", df)
-    copy_df_to_table(conn, "adm2023", df)
-    logger.info("  Done")
-    return len(df)
+        create_table_from_df(conn, table_name, df)
+        copy_df_to_table(conn, table_name, df)
 
+        # Complete table log
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT etl_log_table_complete(%s, %s, %s, NULL)",
+                (log_id, len(df), "completed")
+            )
+        conn.commit()
 
-def load_gr2023(conn):
-    """Load graduation rates."""
-    logger.info("Loading GR2023 (graduation rates)...")
-    df = extract_csv_from_zip(RAW_DIR / "GR2023.zip")
-    logger.info(f"  {len(df)} records, {len(df.columns)} columns")
+        logger.info(f"  Done: {len(df)} rows loaded")
+        return len(df)
 
-    create_table_from_df(conn, "gr2023", df)
-    copy_df_to_table(conn, "gr2023", df)
-    logger.info("  Done")
-    return len(df)
-
-
-def load_gr2023_pell(conn):
-    """Load Pell graduation rates."""
-    logger.info("Loading GR2023_PELL_SSL (Pell graduation rates)...")
-    df = extract_csv_from_zip(RAW_DIR / "GR2023_PELL_SSL.zip")
-    logger.info(f"  {len(df)} records, {len(df.columns)} columns")
-
-    create_table_from_df(conn, "gr2023_pell_ssl", df)
-    copy_df_to_table(conn, "gr2023_pell_ssl", df)
-    logger.info("  Done")
-    return len(df)
-
-
-def load_ef2023a(conn):
-    """Load fall enrollment."""
-    logger.info("Loading EF2023A (fall enrollment)...")
-    df = extract_csv_from_zip(RAW_DIR / "EF2023A.zip")
-    logger.info(f"  {len(df)} records, {len(df.columns)} columns")
-
-    create_table_from_df(conn, "ef2023a", df)
-    copy_df_to_table(conn, "ef2023a", df)
-    logger.info("  Done")
-    return len(df)
-
-
-def load_c2023_a(conn):
-    """Load completions by CIP."""
-    logger.info("Loading C2023_A (completions)...")
-    df = extract_csv_from_zip(RAW_DIR / "C2023_A.zip")
-    logger.info(f"  {len(df)} records, {len(df.columns)} columns")
-
-    create_table_from_df(conn, "c2023_a", df)
-    copy_df_to_table(conn, "c2023_a", df)
-    logger.info("  Done")
-    return len(df)
+    except Exception as e:
+        # Log failure
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT etl_log_table_complete(%s, %s, %s, %s)",
+                (log_id, 0, "failed", str(e))
+            )
+        conn.commit()
+        raise
 
 
 def main():
     logger.info("Connecting to PostgreSQL...")
     conn = psycopg2.connect(CONN_STRING)
 
-    try:
-        load_hd2023(conn)
-        load_adm2023(conn)
-        load_gr2023(conn)
-        load_gr2023_pell(conn)
-        load_ef2023a(conn)
-        load_c2023_a(conn)
+    # Start ETL run
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT etl_start_run(%s, %s, %s)",
+            ("raw_load", 2023, '{"source": "NCES IPEDS"}')
+        )
+        run_id = cur.fetchone()[0]
+    conn.commit()
+    logger.info(f"Started ETL run {run_id}")
 
-        # Quick test query
+    try:
+        total_rows = 0
+        tables_loaded = 0
+
+        for zip_name, table_name, description in FILES_2023:
+            try:
+                rows = load_file(conn, zip_name, table_name, run_id)
+                total_rows += rows
+                if rows > 0:
+                    tables_loaded += 1
+            except Exception as e:
+                logger.error(f"  Failed to load {zip_name}: {e}")
+
+        # Complete ETL run
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM hd2023")
-            count = cur.fetchone()[0]
-            logger.info(f"Verification: {count} institutions in hd2023")
+            cur.execute(
+                "SELECT etl_complete_run(%s, %s, NULL)",
+                (run_id, "completed")
+            )
+        conn.commit()
+
+        logger.info(f"ETL run {run_id} complete: {tables_loaded} tables, {total_rows:,} total rows")
+
+        # Show summary
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT table_name, rows_affected, status
+                FROM etl_table_log
+                WHERE run_id = %s
+                ORDER BY id
+            """, (run_id,))
+            logger.info("Summary:")
+            for row in cur.fetchall():
+                logger.info(f"  {row[0]}: {row[1]:,} rows ({row[2]})")
+
+    except Exception as e:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT etl_complete_run(%s, %s, %s)",
+                (run_id, "failed", str(e))
+            )
+        conn.commit()
+        raise
 
     finally:
         conn.close()

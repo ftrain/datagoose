@@ -14,6 +14,9 @@ const ExploreQuerySchema = z.object({
   state: z.string().length(2).toUpperCase().optional(),
   region: z.string().optional(), // e.g., 'northeast', 'south', etc.
   year: z.coerce.number().int().optional(),
+  // Race/gender filters (for enrollment and completions)
+  race: z.string().optional(), // e.g., 'BKAA', 'HISP', 'WHIT', etc.
+  gender: z.enum(['men', 'women', 'total']).optional(),
   // Data type to include
   dataType: z.enum(['basic', 'enrollment', 'admissions', 'financial', 'graduation', 'completions']).default('basic'),
   // Pagination
@@ -79,6 +82,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     // Determine year for data joins
     const dataYear = params.year;
 
+    // Determine race/gender for enrollment and completions
+    const raceFilter = params.race || 'APTS'; // Default to all students
+    const genderFilter = params.gender || 'total'; // Default to total
+
     switch (params.dataType) {
       case 'enrollment':
         selectFields = `
@@ -86,12 +93,16 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
           i.latitude, i.longitude,
           rs.label as sector_name,
           e.year as data_year,
+          e.race as enrollment_race,
+          e.gender as enrollment_gender,
           e.total::int as total_enrollment
         `;
         joins = `
           LEFT JOIN ref_sector rs ON i.sector = rs.code
-          LEFT JOIN enrollment e ON i.unitid = e.unitid AND e.level = 'all' AND e.gender = 'total' AND e.race = 'APTS'
+          LEFT JOIN enrollment e ON i.unitid = e.unitid AND e.level = 'all'
+            AND e.gender = $${paramIndex++} AND e.race = $${paramIndex++}
         `;
+        values.push(genderFilter, raceFilter);
         if (dataYear) {
           yearCondition = ` AND e.year = $${paramIndex++}`;
           values.push(dataYear);
@@ -177,12 +188,16 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
           i.latitude, i.longitude,
           rs.label as sector_name,
           c.year as data_year,
+          c.race as completions_race,
+          c.gender as completions_gender,
           SUM(c.count)::int as total_completions
         `;
         joins = `
           LEFT JOIN ref_sector rs ON i.sector = rs.code
           LEFT JOIN completions c ON i.unitid = c.unitid
+            AND c.gender = $${paramIndex++} AND c.race = $${paramIndex++}
         `;
+        values.push(genderFilter, raceFilter);
         if (dataYear) {
           yearCondition = ` AND c.year = $${paramIndex++}`;
           values.push(dataYear);
@@ -264,10 +279,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     const needsGroupBy = ['completions', 'graduation'].includes(params.dataType);
     let groupByClause = '';
     if (needsGroupBy) {
-      let yearCol = '';
-      if (params.dataType === 'completions') yearCol = 'c.year';
-      else if (params.dataType === 'graduation') yearCol = 'g.year';
-      groupByClause = `GROUP BY i.unitid, i.name, i.city, i.state, i.sector, i.control, i.level, i.hbcu, i.latitude, i.longitude, rs.label, ${yearCol}`;
+      let extraCols = '';
+      if (params.dataType === 'completions') extraCols = 'c.year, c.race, c.gender';
+      else if (params.dataType === 'graduation') extraCols = 'g.year';
+      groupByClause = `GROUP BY i.unitid, i.name, i.city, i.state, i.sector, i.control, i.level, i.hbcu, i.latitude, i.longitude, rs.label, ${extraCols}`;
     }
 
     // Get total count first
@@ -303,6 +318,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
           state: params.state,
           region: params.region,
           year: params.year,
+          race: params.race,
+          gender: params.gender,
           dataType: params.dataType,
         },
       },
@@ -318,6 +335,11 @@ router.get('/filters', async (_req: Request, res: Response, next: NextFunction) 
     // Get sectors
     const sectors = await query<{ code: number; label: string }>(`
       SELECT code, label FROM ref_sector WHERE code < 99 ORDER BY code
+    `);
+
+    // Get races
+    const races = await query<{ code: string; label: string; sort_order: number }>(`
+      SELECT code, label, sort_order FROM ref_race ORDER BY sort_order
     `);
 
     // Get states with counts
@@ -372,6 +394,12 @@ router.get('/filters', async (_req: Request, res: Response, next: NextFunction) 
         { value: 1, label: '4-year' },
         { value: 2, label: '2-year' },
         { value: 3, label: 'Less than 2-year' },
+      ],
+      races: races.map(r => ({ value: r.code, label: r.label })),
+      genders: [
+        { value: 'total', label: 'All Genders' },
+        { value: 'men', label: 'Men' },
+        { value: 'women', label: 'Women' },
       ],
       years: yearsByType,
       counts: {
@@ -444,6 +472,132 @@ router.get('/aggregate', async (req: Request, res: Response, next: NextFunction)
         region: params.region,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Helper to convert rows to CSV
+function toCSV(columns: string[], rows: Record<string, unknown>[]): string {
+  const escapeCSV = (val: unknown): string => {
+    if (val === null || val === undefined) return '';
+    const str = String(val);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const header = columns.map(escapeCSV).join(',');
+  const dataRows = rows.map(row =>
+    columns.map(col => escapeCSV(row[col])).join(',')
+  );
+  return [header, ...dataRows].join('\n');
+}
+
+// GET /api/explore/csv - Download explore data as CSV
+router.get('/csv', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Use higher limit for CSV export
+    const params = ExploreQuerySchema.parse({
+      ...req.query,
+      limit: Math.min(Number(req.query.limit) || 10000, 10000),
+      offset: 0,
+    });
+
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    // Build filter conditions (same as main explore)
+    if (params.sector !== undefined) {
+      conditions.push(`i.sector = $${paramIndex++}`);
+      values.push(params.sector);
+    }
+    if (params.control !== undefined) {
+      conditions.push(`i.control = $${paramIndex++}`);
+      values.push(params.control);
+    }
+    if (params.level !== undefined) {
+      conditions.push(`i.level = $${paramIndex++}`);
+      values.push(params.level);
+    }
+    if (params.hbcu !== undefined) {
+      conditions.push(`i.hbcu = $${paramIndex++}`);
+      values.push(params.hbcu);
+    }
+    if (params.state) {
+      conditions.push(`i.state = $${paramIndex++}`);
+      values.push(params.state);
+    }
+    if (params.region && REGIONS[params.region]) {
+      conditions.push(`i.state = ANY($${paramIndex++})`);
+      values.push(REGIONS[params.region]);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Build a comprehensive query for CSV export
+    const dataYear = params.year;
+    let yearCondition = '';
+
+    if (dataYear) {
+      yearCondition = ` AND COALESCE(e.year, a.year, f.year, g.year) = $${paramIndex++}`;
+      values.push(dataYear);
+    }
+
+    const sql = `
+      SELECT
+        i.unitid, i.name, i.city, i.state, i.zip,
+        i.latitude, i.longitude,
+        rs.label as sector,
+        CASE i.control WHEN 1 THEN 'Public' WHEN 2 THEN 'Private nonprofit' WHEN 3 THEN 'Private for-profit' END as control,
+        CASE i.level WHEN 1 THEN '4-year' WHEN 2 THEN '2-year' WHEN 3 THEN 'Less than 2-year' END as level,
+        i.hbcu,
+        e.total::int as total_enrollment,
+        a.applicants_total,
+        a.admitted_total,
+        ROUND(a.admit_rate * 100, 1) as admit_rate_pct,
+        ROUND(a.yield_rate * 100, 1) as yield_rate_pct,
+        a.sat_math_25, a.sat_math_75,
+        a.sat_verbal_25, a.sat_verbal_75,
+        f.avg_net_price,
+        f.avg_net_price_0_30k,
+        f.pell_recipients,
+        ROUND(f.pell_pct * 100, 1) as pell_pct,
+        g.cohort_size,
+        g.completers_150pct,
+        ROUND((g.completers_150pct::numeric / NULLIF(g.cohort_size, 0)) * 100, 1) as grad_rate_pct
+      FROM institution i
+      LEFT JOIN ref_sector rs ON i.sector = rs.code
+      LEFT JOIN enrollment e ON i.unitid = e.unitid
+        AND e.level = 'all' AND e.gender = 'total' AND e.race = 'APTS'
+        AND e.year = (SELECT MAX(year) FROM enrollment)
+      LEFT JOIN admissions a ON i.unitid = a.unitid
+        AND a.year = (SELECT MAX(year) FROM admissions)
+      LEFT JOIN financial_aid f ON i.unitid = f.unitid
+        AND f.year = (SELECT MAX(year) FROM financial_aid)
+      LEFT JOIN graduation_rates g ON i.unitid = g.unitid
+        AND g.cohort_type = 'bachelor' AND g.race = 'Total' AND g.gender = 'Total'
+        AND g.year = (SELECT MAX(year) FROM graduation_rates)
+      ${where}
+      ORDER BY i.name
+      LIMIT $${paramIndex}
+    `;
+    values.push(params.limit);
+
+    const rows = await query(sql, values);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: { message: 'No data found for the specified filters' } });
+    }
+
+    const columns = Object.keys(rows[0]);
+    const csv = toCSV(columns, rows);
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="ipeds_explore.csv"');
+    res.send(csv);
   } catch (error) {
     next(error);
   }

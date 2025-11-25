@@ -36,6 +36,8 @@ interface FiltersData {
   regions: FilterOption[];
   control: FilterOption[];
   level: FilterOption[];
+  races: FilterOption[];
+  genders: FilterOption[];
   years: Record<string, number[]>;
   counts: { total: number; hbcu: number };
 }
@@ -48,6 +50,8 @@ interface ExploreFilters {
   state?: string;
   region?: string;
   year?: number;
+  race?: string;
+  gender?: 'men' | 'women' | 'total';
   dataType: 'basic' | 'enrollment' | 'admissions' | 'financial' | 'graduation' | 'completions';
 }
 
@@ -123,6 +127,8 @@ async function fetchExplore(filters: ExploreFilters, sortBy: string, sortDir: So
   if (filters.state) params.set('state', filters.state);
   if (filters.region) params.set('region', filters.region);
   if (filters.year) params.set('year', String(filters.year));
+  if (filters.race) params.set('race', filters.race);
+  if (filters.gender) params.set('gender', filters.gender);
 
   const res = await fetch(`${API_BASE}/explore?${params}`);
   if (!res.ok) throw new Error('Failed to load data');
@@ -158,11 +164,14 @@ export default function Explore() {
   });
 
   // Load explore data
-  const { data: exploreData, isLoading: loadingData } = useQuery({
+  const { data: exploreData, isLoading: loadingData, isFetching: fetchingData } = useQuery({
     queryKey: ['explore', filters, sortBy, sortDir, limit],
     queryFn: () => fetchExplore(filters, sortBy, sortDir, limit),
     enabled: !loadingFilters,
   });
+
+  // Show loading on initial load or when refetching with filter changes
+  const showLoading = loadingData || fetchingData;
 
   const handleFilterChange = (key: keyof ExploreFilters, value: string | undefined) => {
     setFilters(prev => {
@@ -423,6 +432,46 @@ export default function Explore() {
               </div>
             )}
 
+            {/* Race (only for enrollment and completions) */}
+            {(filters.dataType === 'enrollment' || filters.dataType === 'completions') && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Race/Ethnicity</label>
+                <Select
+                  value={filters.race ?? 'APTS'}
+                  onValueChange={(v) => handleFilterChange('race', v === 'APTS' ? undefined : v)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterOptions?.races.map(r => (
+                      <SelectItem key={r.value} value={r.value.toString()}>{r.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Gender (only for enrollment and completions) */}
+            {(filters.dataType === 'enrollment' || filters.dataType === 'completions') && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Gender</label>
+                <Select
+                  value={filters.gender ?? 'total'}
+                  onValueChange={(v) => handleFilterChange('gender', v === 'total' ? undefined : v)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterOptions?.genders.map(g => (
+                      <SelectItem key={g.value} value={g.value.toString()}>{g.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Sector */}
             <div>
               <label className="text-xs font-medium text-muted-foreground">Sector</label>
@@ -532,7 +581,7 @@ export default function Explore() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Institutions</SelectItem>
-                  <SelectItem value="true">HBCUs Only ({filterOptions?.counts.hbcu})</SelectItem>
+                  <SelectItem value="true">HBCUs Only{filterOptions?.counts.hbcu ? ` (${filterOptions.counts.hbcu})` : ''}</SelectItem>
                   <SelectItem value="false">Non-HBCUs Only</SelectItem>
                 </SelectContent>
               </Select>
@@ -594,6 +643,16 @@ export default function Explore() {
                   Year: {filters.year}
                 </span>
               )}
+              {filters.race && filters.race !== 'APTS' && (
+                <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+                  {filterOptions?.races.find(r => r.value === filters.race)?.label}
+                </span>
+              )}
+              {filters.gender && filters.gender !== 'total' && (
+                <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+                  {filterOptions?.genders.find(g => g.value === filters.gender)?.label}
+                </span>
+              )}
               <Button variant="ghost" size="sm" onClick={clearFilters}>Clear all</Button>
             </div>
           )}
@@ -602,16 +661,47 @@ export default function Explore() {
 
       {/* View Toggle */}
       <Tabs value={view} onValueChange={(v) => setView(v as 'table' | 'map')}>
-        <TabsList>
-          <TabsTrigger value="table">Table View</TabsTrigger>
-          <TabsTrigger value="map">Map View</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="table">Table View</TabsTrigger>
+            <TabsTrigger value="map">Map View</TabsTrigger>
+          </TabsList>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const params = new URLSearchParams();
+              if (filters.sector !== undefined) params.set('sector', String(filters.sector));
+              if (filters.control !== undefined) params.set('control', String(filters.control));
+              if (filters.level !== undefined) params.set('level', String(filters.level));
+              if (filters.hbcu !== undefined) params.set('hbcu', String(filters.hbcu));
+              if (filters.state) params.set('state', filters.state);
+              if (filters.region) params.set('region', filters.region);
+              if (filters.year) params.set('year', String(filters.year));
+              if (filters.race) params.set('race', filters.race);
+              if (filters.gender) params.set('gender', filters.gender);
+              params.set('limit', '10000');
+
+              const url = `${API_BASE}/explore/csv?${params}`;
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'ipeds_data.csv';
+              a.click();
+            }}
+            disabled={!exploreData?.data.length}
+          >
+            Download CSV
+          </Button>
+        </div>
 
         <TabsContent value="table" className="mt-4">
           <Card>
             <CardContent className="p-0">
-              {loadingData ? (
-                <div className="p-8 text-center text-muted-foreground">Loading data...</div>
+              {showLoading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2" />
+                  Loading data...
+                </div>
               ) : !exploreData?.data.length ? (
                 <div className="p-8 text-center text-muted-foreground">No institutions found matching filters.</div>
               ) : (

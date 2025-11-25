@@ -1,0 +1,11 @@
+#!/command/execlineb -P
+with-contenv
+
+# Initialize database if needed
+if { test ! -f /data/postgres/PG_VERSION }
+  background {
+    su postgres -c "initdb -D /data/postgres"
+  }
+
+# Start PostgreSQL
+exec su postgres -c "postgres -D /data/postgres"

@@ -40,6 +40,33 @@ The API provides these endpoints:
 - `GET /api/search/text` - Fuzzy text search (pg_trgm)
 - `GET /api/search/nearby` - Geo search (PostGIS)
 - `GET /api/stats` - Database statistics
+- `GET /api/historic/coverage` - Historic data coverage (1980-2008)
+- `GET /api/historic/enrollment` - Historic enrollment trends
+- `GET /api/historic/graduation` - Historic graduation rates (1997-2008)
+- `GET /api/historic/completions` - Historic completions trends
+- `GET /api/historic/institutions` - Historic institution directory
+
+### Authentication (JWT-based)
+- `POST /api/auth/register` - Create new account
+- `POST /api/auth/login` - Login, returns JWT + sets refresh cookie
+- `POST /api/auth/logout` - Clear refresh token
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/auth/me` - Get current user (protected)
+
+### NL-to-SQL Query (Protected, requires auth)
+- `POST /api/query/nl` - Convert natural language to SQL using Claude
+- `POST /api/query/execute` - Execute SQL and return results
+- `GET /api/query/saved` - List saved queries
+- `POST /api/query/saved` - Save a query
+- `DELETE /api/query/saved/:id` - Delete a saved query
+
+### Data Dictionary
+- `GET /api/dictionary` - Full data dictionary with metadata
+- `GET /api/dictionary/tables` - List all tables with descriptions
+- `GET /api/dictionary/tables/:table` - Detailed table info
+- `GET /api/dictionary/search?q=term` - Search columns/tables
+- `GET /api/dictionary/stats` - Live database statistics
+- `POST /api/dictionary/ask` - AI-powered questions about the data
 
 ## Quick Start (ETL)
 
@@ -101,38 +128,29 @@ The tracking tables (`etl_run`, `etl_table_log`) are defined in `schemas/migrati
 | graduation_rates | 2009-2023 | 951,690 | 15 years |
 | enrollment | 2009-2023 | 8,742,540 | 15 years |
 | completions | 2009-2024 | 124,474,410 | 16 years |
-| financial_aid | 2009, 2011-2023 | 90,000 | Missing 2010 |
+| financial_aid | 2009-2023 | ~100,000 | Complete 15 years |
 
-### What's NOT Loaded and Why
+### Historic Data (1980-2008)
 
-#### Pre-2014: No Admissions Data
-- **Reason**: IPEDS did not collect standalone ADM files before 2014
-- **Impact**: Admissions trend analysis starts at 2014
+| Table | Years | Records | Notes |
+|-------|-------|---------|-------|
+| enrollment_historic | 1980, 1986-89, 1991-93, 2000-08 | 109,106 | 17 years with data |
+| completions_historic | 1980, 1984-89, 1991-94, 2000-08 | 844,439 | 20 years with data |
+| institution_historic | 1980, 1984-85, 2000-08 | 80,242 | 12 years with data |
+| graduation_rates_historic | 1997-2008 | 21,047 | 12 years |
 
-#### 2010: Financial Aid Missing
-- **Reason**: SFA0910 raw table has `unitid` as TEXT instead of INTEGER
-- **Error**: `operator does not exist: text = integer`
-- **Fix needed**: Cast unitid to integer in transform: `sfa2010.unitid::integer`
+Historic tables use simplified schemas (total enrollment, 2-digit CIP, etc.) for cross-era comparability.
+Gaps in years are due to missing source files - IPEDS didn't publish data for those years.
 
-#### Pre-2009: Institution Transform Fails
-- **Reason**: HD files before 2009 lack `latitude`/`longitude` columns
-- **Error**: `column "latitude" does not exist`
-- **Data available**: Raw data is loaded for 2002-2008
-- **Fix needed**: Custom ETL that handles missing geo columns
+### Data Gaps (No Source Data Available)
 
-#### Pre-2002: Different File Structure
-- **Reason**: Early IPEDS data (1980-2001) uses different naming conventions
-- **Example**: IC1980 exists but HD1980 doesn't
-- **Status**: Requires custom ETL per era
+- **Admissions pre-2014**: IPEDS did not collect standalone ADM files before 2014
+- **Enrollment 1981-85, 1990, 1994-99**: No EF files published
+- **Completions 1981-83, 1990, 1995-99**: No C files published
+- **Graduation rates pre-1997**: No GR files published
+- **Institutions 1981-83, 1986-99**: No HD files published
 
-### Raw Data Available (in staging tables)
-
-Years 2002-2024 have raw data loaded in staging tables (e.g., `hd2008`, `gr2007`).
-Transform to normalized tables failed for:
-- 2002-2008: Missing latitude/longitude
-- 2010: Financial aid type mismatch
-
-### Data Archive
+### Raw Data Archive
 
 Raw IPEDS files available in `data/raw/` from 1980-2024 (2,300+ zip files).
 
@@ -281,4 +299,67 @@ FROM institution, (SELECT feature_vector FROM institution WHERE unitid = 166683)
 WHERE feature_vector IS NOT NULL
 ORDER BY feature_vector <=> target.feature_vector
 LIMIT 10;
+```
+
+## NL-to-SQL Tips
+
+When generating SQL from natural language, note these important schema details:
+
+### Reference Table Column Names
+- **ref_sector**: `code` (INTEGER), `label` (TEXT) - NOT sector_name
+- **ref_race**: `code` (TEXT), `label` (TEXT) - NOT race_name
+- **ref_cip**: `code`, `title`, `definition`, `level`, `family`
+
+### Enrollment Filtering
+To get unduplicated totals, always filter:
+```sql
+WHERE level = 'all' AND gender = 'total' AND race = 'APTS'
+```
+
+### Rate Columns
+- `admit_rate`, `yield_rate`, `grad_rate_150pct` are stored as decimals (0-1)
+- Multiply by 100 for percentages: `ROUND(admit_rate * 100, 1)`
+
+### Common Joins
+```sql
+-- Institution with sector name
+SELECT i.name, rs.label as sector
+FROM institution i
+JOIN ref_sector rs ON i.sector = rs.code;
+
+-- Enrollment with race name
+SELECT rr.label as race, e.total
+FROM enrollment e
+JOIN ref_race rr ON e.race = rr.code;
+```
+
+## Authentication System
+
+JWT-based auth with:
+- Access tokens (15-minute expiry)
+- Refresh tokens (7-day expiry, HTTP-only cookie)
+- Argon2id password hashing
+
+Database tables in `schemas/migrations/003_auth.sql`:
+- `users` - User accounts
+- `refresh_tokens` - Active refresh tokens
+
+The `/api/query/*` endpoints require authentication. Use the `authFetch` helper on the frontend which handles token refresh automatically.
+
+## Testing NL-to-SQL
+
+Test scripts in `scripts/` and `src/api/__tests__/`:
+- `scripts/test-nl-queries.ts` - CLI runner for NL query tests
+- `src/api/__tests__/nl-queries.test.ts` - Comprehensive test suite (~100 queries)
+
+Run tests:
+```bash
+# Single category
+npx tsx scripts/test-nl-queries.ts institution
+
+# All categories
+npx tsx scripts/test-nl-queries.ts all --limit 5
+
+# SQL generation only (no execution)
+npx tsx scripts/test-nl-queries.ts enrollment --sql-only
 ```

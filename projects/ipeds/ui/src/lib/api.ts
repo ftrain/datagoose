@@ -182,4 +182,35 @@ export const api = {
 
   getCompletionsStatsTrends: (state?: string, award_level?: number) =>
     fetchApi<ApiResponse<{ year: number; total_completions: number }[]>>('/stats/completions-trends', { state, award_level }),
+
+  // Historic (1980-2008)
+  getHistoricCoverage: () =>
+    fetchApi<ApiResponse<{ table_name: string; years: number[]; records: number }[]>>('/historic/coverage'),
+
+  getHistoricEnrollment: (state?: string) =>
+    fetchApi<ApiResponse<{ year: number; total_enrollment: number; institutions: number }[]>>('/historic/enrollment', { state }),
+
+  getHistoricEnrollmentByInstitution: (unitid: number) =>
+    fetchApi<ApiResponse<{ year: number; total_enrollment: number; name: string }[]>>(`/historic/enrollment/${unitid}`),
+
+  getHistoricCompletions: (cip_2digit?: string) =>
+    fetchApi<ApiResponse<{ year: number; total_completions: number; institutions: number }[]>>('/historic/completions', { cip_2digit }),
+
+  getHistoricCompletionsByField: (year = 2008) =>
+    fetchApi<ApiResponse<{ cip_2digit: string; field_name: string; total_completions: number; institutions: number }[]>>('/historic/completions/by-field', { year }),
+
+  getHistoricGraduation: () =>
+    fetchApi<ApiResponse<{ year: number; institutions: number; avg_grad_rate: number; min_grad_rate: number; max_grad_rate: number; total_cohort: number; total_completers: number }[]>>('/historic/graduation'),
+
+  getHistoricGraduationByInstitution: (unitid: number) =>
+    fetchApi<ApiResponse<{ year: number; cohort_size: number; completers: number; grad_rate_150pct: number; name: string }[]>>(`/historic/graduation/${unitid}`),
+
+  getHistoricInstitutions: (params?: { year?: number; state?: string; search?: string; limit?: number; offset?: number }) =>
+    fetchApi<ApiResponse<{ unitid: number; year: number; name: string; city: string; state: string }[]>>('/historic/institutions', params),
+
+  getHistoricInstitution: (unitid: number) =>
+    fetchApi<ApiResponse<{ year: number; name: string; city: string; state: string }[]>>(`/historic/institutions/${unitid}`),
+
+  getHistoricCombinedTrends: () =>
+    fetchApi<ApiResponse<{ year: number; total_enrollment: number | null; avg_grad_rate: number | null }[]>>('/historic/trends/combined'),
 };

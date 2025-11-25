@@ -16,17 +16,20 @@ function normalizeCipCode(code: string): string {
 // GET /api/cip - List all CIP families (top-level)
 router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    // Use cip_family index for much faster lookups
     const sql = `
       SELECT
         r.code, r.title,
-        COUNT(DISTINCT c.unitid)::int as institution_count,
-        SUM(c.count)::int as total_completions
+        COALESCE(stats.institution_count, 0)::int as institution_count,
+        COALESCE(stats.total_completions, 0)::int as total_completions
       FROM ref_cip r
-      LEFT JOIN completions c ON
-        LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') = r.code
-        AND c.year = (SELECT MAX(year) FROM completions)
+      LEFT JOIN (
+        SELECT cip_family, COUNT(DISTINCT unitid) as institution_count, SUM(count) as total_completions
+        FROM completions
+        WHERE year = (SELECT MAX(year) FROM completions)
+        GROUP BY cip_family
+      ) stats ON r.code = stats.cip_family
       WHERE r.level = 2
-      GROUP BY r.code, r.title
       ORDER BY r.code
     `;
 
@@ -97,52 +100,59 @@ router.get('/:code', async (req: Request, res: Response, next: NextFunction) => 
 
     const cip = cipRows[0];
 
-    // Get children (next level down)
+    // Get children (next level down) - use indexed cip_family/cip_series columns
     let childrenSql: string;
+    let childrenParams: unknown[];
     if (cip.level === 2) {
-      // Family -> Series (4-digit)
+      // Family -> Series (4-digit): use cip_family index
       childrenSql = `
         SELECT
           r.code, r.title, r.level,
-          COUNT(DISTINCT c.unitid)::int as institution_count,
-          SUM(c.count)::int as total_completions
+          COALESCE(stats.institution_count, 0)::int as institution_count,
+          COALESCE(stats.total_completions, 0)::int as total_completions
         FROM ref_cip r
-        LEFT JOIN completions c ON
-          LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') || '.' ||
-          SUBSTRING(RPAD(SPLIT_PART(c.cip_code, '.', 2), 4, '0'), 1, 2) = SUBSTRING(r.code, 1, 5)
-          AND c.year = $2
+        LEFT JOIN (
+          SELECT cip_series as series, COUNT(DISTINCT unitid) as institution_count, SUM(count) as total_completions
+          FROM completions
+          WHERE cip_family = $1 AND year = $2
+          GROUP BY cip_series
+        ) stats ON r.code = stats.series
         WHERE r.family = $1 AND r.level = 4
-        GROUP BY r.code, r.title, r.level
         ORDER BY r.code
       `;
+      childrenParams = [cip.family, year];
     } else if (cip.level === 4) {
-      // Series -> Detailed (6-digit)
-      const prefix = cip.code.substring(0, 5); // e.g., "01.01"
+      // Series -> Detailed (6-digit): use cip_series index
+      const seriesCode = cip.code.substring(0, 5);
       childrenSql = `
         SELECT
           r.code, r.title, r.level,
-          COUNT(DISTINCT c.unitid)::int as institution_count,
-          SUM(c.count)::int as total_completions
+          COALESCE(stats.institution_count, 0)::int as institution_count,
+          COALESCE(stats.total_completions, 0)::int as total_completions
         FROM ref_cip r
-        LEFT JOIN completions c ON
-          LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') || '.' ||
-          RPAD(SPLIT_PART(c.cip_code, '.', 2), 4, '0') = r.code
-          AND c.year = $2
-        WHERE r.code LIKE $1 || '%' AND r.level = 6
-        GROUP BY r.code, r.title, r.level
+        LEFT JOIN (
+          SELECT cip_code, COUNT(DISTINCT unitid) as institution_count, SUM(count) as total_completions
+          FROM completions
+          WHERE cip_series = $1 AND year = $2
+          GROUP BY cip_code
+        ) stats ON r.code = stats.cip_code
+        WHERE r.code LIKE $3 AND r.level = 6
         ORDER BY r.code
       `;
+      childrenParams = [seriesCode, year, `${seriesCode}%`];
     } else {
       // Detailed level - no children
       childrenSql = '';
+      childrenParams = [];
     }
 
     const children = childrenSql
-      ? await query(childrenSql, [cip.level === 2 ? cip.family : cip.code.substring(0, 5), year])
+      ? await query(childrenSql, childrenParams)
       : [];
 
-    // Get top institutions for this CIP code
+    // Get top institutions - use indexed cip_family/cip_series columns
     let institutionsSql: string;
+    let institutionsParams: unknown[];
     if (cip.level === 2) {
       institutionsSql = `
         SELECT
@@ -150,26 +160,26 @@ router.get('/:code', async (req: Request, res: Response, next: NextFunction) => 
           SUM(c.count)::int as completions
         FROM completions c
         JOIN institution i ON c.unitid = i.unitid
-        WHERE LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') = $1
-          AND c.year = $2
+        WHERE c.cip_family = $1 AND c.year = $2
         GROUP BY i.unitid, i.name, i.state
         ORDER BY completions DESC
         LIMIT 20
       `;
+      institutionsParams = [cip.family, year];
     } else if (cip.level === 4) {
+      const seriesCode = cip.code.substring(0, 5);
       institutionsSql = `
         SELECT
           i.unitid, i.name, i.state,
           SUM(c.count)::int as completions
         FROM completions c
         JOIN institution i ON c.unitid = i.unitid
-        WHERE LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') || '.' ||
-              SUBSTRING(RPAD(SPLIT_PART(c.cip_code, '.', 2), 4, '0'), 1, 2) = $1
-          AND c.year = $2
+        WHERE c.cip_series = $1 AND c.year = $2
         GROUP BY i.unitid, i.name, i.state
         ORDER BY completions DESC
         LIMIT 20
       `;
+      institutionsParams = [seriesCode, year];
     } else {
       institutionsSql = `
         SELECT
@@ -177,48 +187,50 @@ router.get('/:code', async (req: Request, res: Response, next: NextFunction) => 
           SUM(c.count)::int as completions
         FROM completions c
         JOIN institution i ON c.unitid = i.unitid
-        WHERE LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') || '.' ||
-              RPAD(SPLIT_PART(c.cip_code, '.', 2), 4, '0') = $1
-          AND c.year = $2
+        WHERE c.cip_code = $1 AND c.year = $2
         GROUP BY i.unitid, i.name, i.state
         ORDER BY completions DESC
         LIMIT 20
       `;
+      institutionsParams = [cip.code, year];
     }
 
-    const institutions = await query(institutionsSql, [cip.code, year]);
+    const institutions = await query(institutionsSql, institutionsParams);
 
-    // Get trend data
+    // Get trend data - use indexed cip_family/cip_series columns
     let trendSql: string;
+    let trendParams: unknown[];
     if (cip.level === 2) {
       trendSql = `
         SELECT year, SUM(count)::int as completions
         FROM completions
-        WHERE LPAD(SPLIT_PART(cip_code, '.', 1), 2, '0') = $1
+        WHERE cip_family = $1
         GROUP BY year
         ORDER BY year
       `;
+      trendParams = [cip.family];
     } else if (cip.level === 4) {
+      const seriesCode = cip.code.substring(0, 5);
       trendSql = `
         SELECT year, SUM(count)::int as completions
         FROM completions
-        WHERE LPAD(SPLIT_PART(cip_code, '.', 1), 2, '0') || '.' ||
-              SUBSTRING(RPAD(SPLIT_PART(cip_code, '.', 2), 4, '0'), 1, 2) = $1
+        WHERE cip_series = $1
         GROUP BY year
         ORDER BY year
       `;
+      trendParams = [seriesCode];
     } else {
       trendSql = `
         SELECT year, SUM(count)::int as completions
         FROM completions
-        WHERE LPAD(SPLIT_PART(cip_code, '.', 1), 2, '0') || '.' ||
-              RPAD(SPLIT_PART(cip_code, '.', 2), 4, '0') = $1
+        WHERE cip_code = $1
         GROUP BY year
         ORDER BY year
       `;
+      trendParams = [cip.code];
     }
 
-    const trends = await query(trendSql, [cip.code]);
+    const trends = await query(trendSql, trendParams);
 
     res.json({
       data: {
@@ -256,20 +268,18 @@ router.get('/:code/institutions', async (req: Request, res: Response, next: Next
     const values: unknown[] = [params.year];
     let paramIndex = 2;
 
-    // Determine CIP matching based on code format
+    // Determine CIP matching based on code format - use indexed cip_family/cip_series columns
     if (!code.includes('.')) {
-      // Family level (2-digit)
-      conditions.push(`LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') = $${paramIndex++}`);
+      // Family level (2-digit): use cip_family index
+      conditions.push(`c.cip_family = $${paramIndex++}`);
       values.push(normalizedCode);
     } else if (code.split('.')[1].length === 2) {
-      // Series level (4-digit)
-      conditions.push(`LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') || '.' ||
-        SUBSTRING(RPAD(SPLIT_PART(c.cip_code, '.', 2), 4, '0'), 1, 2) = $${paramIndex++}`);
+      // Series level (4-digit): use cip_series index
+      conditions.push(`c.cip_series = $${paramIndex++}`);
       values.push(normalizedCode.substring(0, 5));
     } else {
-      // Detailed level (6-digit)
-      conditions.push(`LPAD(SPLIT_PART(c.cip_code, '.', 1), 2, '0') || '.' ||
-        RPAD(SPLIT_PART(c.cip_code, '.', 2), 4, '0') = $${paramIndex++}`);
+      // Detailed level (6-digit): exact match on cip_code
+      conditions.push(`c.cip_code = $${paramIndex++}`);
       values.push(normalizedCode);
     }
 

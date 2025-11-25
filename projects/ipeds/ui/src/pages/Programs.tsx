@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -42,8 +42,11 @@ interface CipChild {
 interface CipInstitution {
   unitid: number;
   name: string;
+  city: string;
   state: string;
+  sector: number;
   completions: number;
+  award_levels: number[];
 }
 
 interface CipTrend {
@@ -265,6 +268,117 @@ function CipSearch() {
   );
 }
 
+const AWARD_LEVELS: Record<number, string> = {
+  1: 'Certificate < 1 year',
+  2: 'Certificate 1-2 years',
+  3: 'Associate',
+  4: 'Certificate 2-4 years',
+  5: "Bachelor's",
+  6: 'Post-bac Certificate',
+  7: "Master's",
+  8: 'Post-master Certificate',
+  9: 'Doctoral Research',
+  10: 'Doctoral Professional',
+};
+
+function CipInstitutionsView({ code }: { code: string }) {
+  const { data, isLoading, error } = useQuery<{ data: CipInstitution[]; meta: { total: number } }>({
+    queryKey: ['cip-institutions', code],
+    queryFn: () => fetch(`${API_BASE}/cip/${code}/institutions?limit=500`).then(r => r.json()),
+  });
+
+  const { data: cipData } = useQuery<{ data: CipDetail }>({
+    queryKey: ['cip-detail', code],
+    queryFn: () => fetch(`${API_BASE}/cip/${code}`).then(r => r.json()),
+  });
+
+  if (isLoading) return <div className="text-muted-foreground">Loading institutions...</div>;
+  if (error) return <div className="text-destructive">Error loading institutions</div>;
+
+  const institutions = data?.data ?? [];
+  const cip = cipData?.data;
+
+  return (
+    <div className="space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/programs">All Programs</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to={`/programs/${code}`}>{code}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>All Institutions</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold">
+          Institutions Offering {cip?.title ?? code}
+        </h1>
+        <p className="text-muted-foreground">
+          {data?.meta.total ?? institutions.length} institutions with completions in this program
+        </p>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="pt-6">
+          {institutions.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Institution</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Award Levels</TableHead>
+                  <TableHead className="text-right">Completions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {institutions.map(inst => (
+                  <TableRow key={inst.unitid}>
+                    <TableCell>
+                      <Link
+                        to={`/institutions/${inst.unitid}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {inst.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {inst.city}, {inst.state}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {inst.award_levels?.map(level => AWARD_LEVELS[level] ?? `Level ${level}`).join(', ') || '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatNumber(inst.completions)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-muted-foreground py-8 text-center">
+              No institutions found for this program
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function CipDetailView({ code }: { code: string }) {
   const { data, isLoading, error } = useQuery<{ data: CipDetail }>({
     queryKey: ['cip-detail', code],
@@ -462,7 +576,9 @@ function CipDetailView({ code }: { code: string }) {
 export default function Programs() {
   const { code } = useParams<{ code: string }>();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const isSearching = searchParams.has('q');
+  const isInstitutionsView = location.pathname.endsWith('/institutions');
 
   return (
     <div className="space-y-6">
@@ -501,7 +617,8 @@ export default function Programs() {
         </>
       )}
 
-      {code && <CipDetailView code={code} />}
+      {code && isInstitutionsView && <CipInstitutionsView code={code} />}
+      {code && !isInstitutionsView && <CipDetailView code={code} />}
     </div>
   );
 }

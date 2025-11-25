@@ -1,0 +1,44 @@
+# Fly.io configuration for IPEDS Explorer
+# https://fly.io/docs/reference/configuration/
+
+app = "ipeds-explorer"
+primary_region = "iad"  # US East (Ashburn)
+
+[build]
+  dockerfile = "deploy/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/datagoose"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false  # Keep running for database
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 4096  # 4GB RAM - sufficient for 2 users with indexed queries
+
+[mounts]
+  source = "ipeds_data"
+  destination = "/data"
+  initial_size = "15"  # 15GB volume (trimmed database is ~8-10GB)
+
+# Health check
+[checks]
+  [checks.api]
+    type = "http"
+    port = 8080
+    path = "/api/stats"
+    interval = "30s"
+    timeout = "5s"
