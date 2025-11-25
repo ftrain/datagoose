@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import Markdown from 'react-markdown';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -168,8 +169,8 @@ function AskQuestion() {
         {answer && (
           <div className="mt-4 p-4 bg-muted rounded-lg">
             <h4 className="font-medium mb-2">Answer:</h4>
-            <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-              {answer}
+            <div className="prose prose-sm max-w-none dark:prose-invert prose-pre:bg-background prose-pre:border prose-code:bg-background prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
+              <Markdown>{answer}</Markdown>
             </div>
           </div>
         )}
