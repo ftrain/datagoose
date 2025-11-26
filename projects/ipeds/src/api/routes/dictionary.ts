@@ -505,8 +505,8 @@ router.get('/stats', async (_req: Request, res: Response, next: NextFunction) =>
     `);
 
     res.json({
-      tableCounts: stats.rows,
-      yearRanges: yearRanges.rows,
+      tableCounts: stats,
+      yearRanges: yearRanges,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
