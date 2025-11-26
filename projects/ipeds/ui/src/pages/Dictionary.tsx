@@ -169,7 +169,7 @@ function AskQuestion() {
         {answer && (
           <div className="mt-4 p-4 bg-muted rounded-lg">
             <h4 className="font-medium mb-2">Answer:</h4>
-            <div className="prose prose-sm max-w-none dark:prose-invert prose-pre:bg-background prose-pre:border prose-code:bg-background prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
+            <div className="prose prose-sm max-w-none prose-neutral prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-pre:bg-background prose-pre:border prose-code:bg-background prose-code:text-foreground prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
               <Markdown>{answer}</Markdown>
             </div>
           </div>
