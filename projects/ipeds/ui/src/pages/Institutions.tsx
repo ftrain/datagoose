@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,6 +44,7 @@ const SECTORS: Record<number, string> = {
 };
 
 export default function Institutions() {
+  usePageTitle('Institutions');
   const [search, setSearch] = useState('');
   const [state, setState] = useState<string>('');
   const [sector, setSector] = useState<string>('');

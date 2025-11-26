@@ -6,6 +6,7 @@ import { sql, PostgreSQL } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   Table,
   TableBody,
@@ -278,6 +279,7 @@ function detectChartType(columns: string[], rows: Record<string, unknown>[]): 't
 }
 
 export default function Queries() {
+  usePageTitle('Query Builder');
   const queryClient = useQueryClient();
   const [sqlInput, setSqlInput] = useState('SELECT * FROM institution LIMIT 10;');
   const [nlInput, setNlInput] = useState('');

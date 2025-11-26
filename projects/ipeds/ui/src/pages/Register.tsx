@@ -5,8 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function Register() {
+  usePageTitle('Create Account');
   const navigate = useNavigate();
   const { register } = useAuth();
 

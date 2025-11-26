@@ -6,8 +6,10 @@ import { Link } from 'react-router-dom';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { PieChart } from '@/components/charts/PieChart';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function Dashboard() {
+  usePageTitle('Dashboard');
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['stats'],
     queryFn: () => api.getStats(),

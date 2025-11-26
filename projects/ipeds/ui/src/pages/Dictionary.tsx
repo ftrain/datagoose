@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import Markdown from 'react-markdown';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -601,6 +602,7 @@ function SearchDictionary() {
 }
 
 export default function Dictionary() {
+  usePageTitle('Data Dictionary');
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
 
   const tables = [
@@ -624,6 +626,39 @@ export default function Dictionary() {
           query it effectively.
         </p>
       </div>
+
+      <Card className="bg-muted/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Database Connection</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Host:</span>{' '}
+              <code className="bg-background px-1 rounded">localhost</code>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Port:</span>{' '}
+              <code className="bg-background px-1 rounded">5433</code>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Database:</span>{' '}
+              <code className="bg-background px-1 rounded">datagoose</code>
+            </div>
+            <div>
+              <span className="text-muted-foreground">User:</span>{' '}
+              <code className="bg-background px-1 rounded">postgres</code>
+            </div>
+          </div>
+          <div className="text-sm">
+            <span className="text-muted-foreground">Password:</span>{' '}
+            <code className="bg-background px-1 rounded">postgres</code>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Connect via: <code className="bg-background px-1 rounded">psql postgresql://postgres:postgres@localhost:5433/datagoose</code>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="ask" className="space-y-6">
         <TabsList>

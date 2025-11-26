@@ -493,6 +493,8 @@ router.get('/stats', async (_req: Request, res: Response, next: NextFunction) =>
       UNION ALL SELECT 'completions', COUNT(*)::int FROM completions
       UNION ALL SELECT 'financial_aid', COUNT(*)::int FROM financial_aid
       UNION ALL SELECT 'ref_cip', COUNT(*)::int FROM ref_cip
+      UNION ALL SELECT 'ref_sector', COUNT(*)::int FROM ref_sector
+      UNION ALL SELECT 'ref_race', COUNT(*)::int FROM ref_race
       ORDER BY table_name
     `);
 

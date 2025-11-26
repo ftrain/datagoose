@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams, useLocation } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -579,6 +580,8 @@ export default function Programs() {
   const location = useLocation();
   const isSearching = searchParams.has('q');
   const isInstitutionsView = location.pathname.endsWith('/institutions');
+
+  usePageTitle(code ? `Program ${code}` : 'Programs');
 
   return (
     <div className="space-y-6">

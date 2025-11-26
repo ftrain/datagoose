@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { BarChart } from '@/components/charts/BarChart';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function Historic() {
+  usePageTitle('Historic Data (1980-2008)');
   const { data: coverage, isLoading: coverageLoading } = useQuery({
     queryKey: ['historic-coverage'],
     queryFn: () => api.getHistoricCoverage(),

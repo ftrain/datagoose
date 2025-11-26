@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -171,16 +172,19 @@ export default function Institution() {
   const id = parseInt(unitid || '0');
   const navigate = useNavigate();
 
-  // Year selectors for different data types
-  const [enrollmentYear, setEnrollmentYear] = useState('2023');
-  const [completionsYear, setCompletionsYear] = useState('2023');
-
-  // Core institution data
+  // Core institution data - fetch first for page title
   const { data: institution, isLoading: instLoading } = useQuery({
     queryKey: ['institution', id],
     queryFn: () => api.getInstitution(id),
     enabled: !!id,
   });
+
+  // Dynamic page title based on institution name
+  usePageTitle(institution?.name || 'Institution');
+
+  // Year selectors for different data types
+  const [enrollmentYear, setEnrollmentYear] = useState('2023');
+  const [completionsYear, setCompletionsYear] = useState('2023');
 
   // Admissions data
   const { data: admissions } = useQuery({
