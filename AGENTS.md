@@ -227,6 +227,25 @@ CREATE INDEX idx_power_plants_country ON power_plants(country_code);
 CREATE INDEX idx_power_plants_fuel ON power_plants(primary_fuel);
 ```
 
+## Deployed Projects
+
+### IPEDS (https://ipeds.bkwaffles.com)
+
+The IPEDS project is fully deployed and serves as a reference implementation:
+
+- **Branch**: `projects/ipeds`
+- **Server**: Digital Ocean droplet (bkwaffles.com, 204.48.22.228)
+- **Stack**: nginx + systemd + Docker PostgreSQL
+- **Database**: 44GB with pgvector, PostGIS, pg_trgm
+
+Key features:
+- 134M+ records spanning 1980-2024
+- Vector similarity search for institutions
+- Natural language to SQL queries (Claude-powered)
+- Data dictionary with AI Q&A
+
+See `projects/ipeds/CLAUDE.md` for detailed deployment docs.
+
 ## Git Workflow
 
 ### Branch Strategy
@@ -234,7 +253,7 @@ CREATE INDEX idx_power_plants_fuel ON power_plants(primary_fuel);
 ```
 main                    # Framework only, always stable
 ├── projects/power-plants    # Power plants project
-├── projects/ipeds           # IPEDS education data
+├── projects/ipeds           # IPEDS education data (DEPLOYED)
 └── projects/<new-project>   # Each project gets its own branch
 ```
 
@@ -314,6 +333,46 @@ git lfs ls-files
 ```
 
 ## Data Migration Best Practices
+
+### 0. ETL Tracking (CRITICAL)
+
+**Always create and use ETL tracking tables for multi-file migrations:**
+
+```sql
+-- Create ETL tracking tables (do this FIRST for any new project)
+CREATE TABLE IF NOT EXISTS etl_run (
+    id SERIAL PRIMARY KEY,
+    run_type TEXT NOT NULL,  -- 'raw_load', 'transform'
+    data_year INTEGER NOT NULL,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    status TEXT NOT NULL DEFAULT 'running',  -- 'running', 'completed', 'failed'
+    error_message TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS etl_table_log (
+    id SERIAL PRIMARY KEY,
+    run_id INTEGER REFERENCES etl_run(id),
+    table_name TEXT NOT NULL,
+    rows_affected INTEGER,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    status TEXT NOT NULL DEFAULT 'running'
+);
+```
+
+**Before loading ANY data, check what's already loaded:**
+```sql
+SELECT data_year, run_type, status, COUNT(*) FROM etl_run GROUP BY 1,2,3 ORDER BY 1;
+SELECT table_name, SUM(rows_affected) FROM etl_table_log WHERE status='completed' GROUP BY 1;
+```
+
+**Why this matters:**
+- Context windows end mid-session - tracking tables preserve state
+- Multiple agents may work on the same project
+- Prevents duplicate loads and wasted time
+- Provides audit trail for data lineage
 
 ### 1. Source Analysis
 
