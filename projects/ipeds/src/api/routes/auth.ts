@@ -65,6 +65,11 @@ const ResetPasswordSchema = z.object({
 
 // POST /api/auth/register - Create new user
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
+  // Registration disabled in production
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: { message: 'Registration is currently disabled' } });
+  }
+
   try {
     const { email, username, password } = RegisterSchema.parse(req.body);
 

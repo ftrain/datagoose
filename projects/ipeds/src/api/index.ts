@@ -55,18 +55,11 @@ app.use('/api/cip', cipRouter);
 app.use('/api/historic', historicRouter);
 app.use('/api/dictionary', dictionaryRouter);
 
-// Serve static UI files in production
-if (process.env.NODE_ENV === 'production') {
+// Note: In production deployment, nginx serves the static UI files
+// and handles the SPA fallback. This block is only for local testing.
+if (process.env.NODE_ENV === 'production' && process.env.SERVE_STATIC) {
   const uiPath = path.join(__dirname, '..', '..', 'ui', 'dist');
   app.use(express.static(uiPath));
-
-  // SPA fallback - serve index.html for all non-API routes
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/')) {
-      return next();
-    }
-    res.sendFile(path.join(uiPath, 'index.html'));
-  });
 }
 
 // Error handling

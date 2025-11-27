@@ -24,7 +24,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
+// import { Skeleton } from '@/components/ui/skeleton';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { BarChart } from '@/components/charts/BarChart';
 import { PieChart } from '@/components/charts/PieChart';
@@ -381,7 +381,8 @@ export default function Queries() {
   }, []);
 
   // All queries for sidebar
-  const allQueries = [...PRESET_QUERIES, ...savedQueries];
+  const _allQueries = [...PRESET_QUERIES, ...savedQueries];
+  void _allQueries;
 
   // Detect chart type for results
   const chartType = queryResult ? detectChartType(queryResult.columns, queryResult.rows) : null;
@@ -675,7 +676,7 @@ export default function Queries() {
                 {showVisualization && chartData && chartType === 'trend' && (
                   <div className="h-64 mb-4">
                     <TrendChart
-                      data={chartData}
+                      data={chartData as { year: number; value: number }[]}
                       dataKey="value"
                       height={250}
                       color="#3b82f6"
@@ -685,7 +686,7 @@ export default function Queries() {
                 {showVisualization && chartData && chartType === 'bar' && (
                   <div className="h-64 mb-4">
                     <BarChart
-                      data={chartData}
+                      data={chartData as { name: string; value: number }[]}
                       height={250}
                       color="#10b981"
                     />
@@ -694,7 +695,7 @@ export default function Queries() {
                 {showVisualization && chartData && chartType === 'pie' && (
                   <div className="h-64 mb-4">
                     <PieChart
-                      data={chartData}
+                      data={chartData as { name: string; value: number }[]}
                       height={250}
                       showLegend={true}
                     />

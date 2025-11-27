@@ -110,7 +110,11 @@ function AppContent() {
           <Route path="/programs/:code" element={<Programs />} />
           <Route path="/programs/:code/institutions" element={<Programs />} />
           <Route path="/historic" element={<Historic />} />
-          <Route path="/dictionary" element={<Dictionary />} />
+          <Route path="/dictionary" element={
+            <ProtectedRoute>
+              <Dictionary />
+            </ProtectedRoute>
+          } />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery } from '@tanstack/react-query';
@@ -180,7 +180,7 @@ export default function Institution() {
   });
 
   // Dynamic page title based on institution name
-  usePageTitle(institution?.name || 'Institution');
+  usePageTitle(institution?.data?.name || 'Institution');
 
   // Year selectors for different data types
   const [enrollmentYear, setEnrollmentYear] = useState('2023');
