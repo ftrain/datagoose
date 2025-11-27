@@ -363,3 +363,71 @@ npx tsx scripts/test-nl-queries.ts all --limit 5
 # SQL generation only (no execution)
 npx tsx scripts/test-nl-queries.ts enrollment --sql-only
 ```
+
+## Production Deployment
+
+**Live site**: https://ipeds.bkwaffles.com
+
+### Server Details
+- **Host**: Digital Ocean droplet at bkwaffles.com (204.48.22.228)
+- **SSH**: `ssh root@bkwaffles.com`
+- **App directory**: `/opt/ipeds/app`
+- **PostgreSQL data**: `/mnt/volume_nyc1_01/ipeds-postgres`
+
+### Architecture
+- **nginx**: Reverse proxy, serves static UI, SSL termination
+- **systemd**: `ipeds-api.service` runs the Express API
+- **Docker**: PostgreSQL with pgvector + PostGIS
+
+### Key Files on Server
+- `/etc/nginx/sites-available/ipeds` - nginx config
+- `/etc/systemd/system/ipeds-api.service` - systemd service
+- `/opt/ipeds/docker-compose.yml` - PostgreSQL container
+- `/opt/ipeds/app/.env` - environment variables
+
+### Deploying Updates
+```bash
+# Sync code (excludes node_modules, .env, ui/dist)
+rsync -avz --exclude=node_modules --exclude=.env --exclude='ui/node_modules' --exclude='ui/dist' \
+  /Users/ford/dev/datagoose/projects/ipeds/ root@bkwaffles.com:/opt/ipeds/app/
+
+# On server: rebuild UI and restart
+ssh root@bkwaffles.com "cd /opt/ipeds/app/ui && npm install && npm run build && systemctl restart ipeds-api"
+```
+
+### Database Backup/Restore
+```bash
+# Export from local (790MB compressed from 44GB)
+docker exec datagoose-ipeds-postgres-1 pg_dump -U postgres -d datagoose --format=custom --compress=9 > /tmp/ipeds-backup.dump
+
+# Copy to server
+scp /tmp/ipeds-backup.dump root@bkwaffles.com:/tmp/
+
+# Import on server
+ssh root@bkwaffles.com "docker cp /tmp/ipeds-backup.dump ipeds-postgres:/tmp/ && \
+  docker exec ipeds-postgres pg_restore -U postgres -d ipeds --clean --if-exists --no-owner /tmp/ipeds-backup.dump"
+```
+
+### Common Server Commands
+```bash
+# Check API status
+ssh root@bkwaffles.com "systemctl status ipeds-api"
+
+# View API logs
+ssh root@bkwaffles.com "journalctl -u ipeds-api -f"
+
+# Restart API
+ssh root@bkwaffles.com "systemctl restart ipeds-api"
+
+# Check database
+ssh root@bkwaffles.com "docker exec ipeds-postgres psql -U postgres -d ipeds -c 'SELECT COUNT(*) FROM institution;'"
+
+# Renew SSL (auto-renewed by certbot)
+ssh root@bkwaffles.com "certbot renew"
+```
+
+### Production Environment
+- `NODE_ENV=production`
+- Registration disabled (returns 403)
+- JWT secrets in `/opt/ipeds/app/.env`
+- ANTHROPIC_API_KEY for NL-to-SQL feature

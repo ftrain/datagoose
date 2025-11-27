@@ -564,3 +564,39 @@ def generate_validation_report(validation_results: Dict, output_path: str):
 - 🚫 **Never do:** Skip validation step
 - 🚫 **Never do:** Hardcode credentials (use environment variables)
 - 🚫 **Never do:** Run in production without dry-run first
+
+## IPEDS Project Reference
+
+The IPEDS project is the largest completed ETL project and serves as a reference:
+
+- **Production**: https://ipeds.bkwaffles.com
+- **Project path**: `projects/ipeds/etl/`
+- **Branch**: `projects/ipeds`
+- **Database size**: 44GB (790MB compressed)
+
+### Data Coverage (November 2024)
+| Table | Years | Records |
+|-------|-------|---------|
+| institution | 2009-2024 | ~9,800 |
+| admissions | 2014-2023 | 20,571 |
+| graduation_rates | 2009-2023 | 951,690 |
+| enrollment | 2009-2023 | 8,742,540 |
+| completions | 2009-2024 | 124,474,410 |
+| financial_aid | 2009-2023 | ~100,000 |
+| enrollment_historic | 1980-2008 | 109,106 |
+| completions_historic | 1980-2008 | 844,439 |
+
+### Key ETL Scripts
+- `etl/load_year.py` - Load raw IPEDS files for a year
+- `etl/transform_year.py` - Transform into analysis-ready tables
+- `etl/load_historic.py` - Load historic data (1980-2008)
+
+### Production Database Backup/Restore
+```bash
+# Export (44GB → 790MB)
+docker exec datagoose-ipeds-postgres-1 pg_dump -U postgres -d datagoose --format=custom --compress=9 > backup.dump
+
+# Import on production server
+docker cp backup.dump ipeds-postgres:/tmp/
+docker exec ipeds-postgres pg_restore -U postgres -d ipeds --clean --if-exists --no-owner /tmp/backup.dump
+```

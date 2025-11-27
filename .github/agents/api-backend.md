@@ -261,3 +261,28 @@ describe('GET /api/institutions', () => {
 - **Always do:** Log errors with context, implement proper error handling
 - **Ask first:** Adding new dependencies, changing response formats
 - **Never do:** Use ORMs (raw SQL is faster), skip input validation, return unbounded results
+
+## IPEDS Project Reference
+
+The IPEDS project is deployed and serves as a reference implementation:
+
+- **Live site**: https://ipeds.bkwaffles.com
+- **API base**: https://ipeds.bkwaffles.com/api
+- **Project path**: `projects/ipeds/`
+- **Branch**: `projects/ipeds`
+
+### Key Endpoints Implemented
+- `/api/institutions` - Institution search with filters
+- `/api/search/text` - pg_trgm fuzzy search
+- `/api/institutions/:unitid/similar` - pgvector similarity
+- `/api/search/nearby` - PostGIS geo search
+- `/api/query/nl` - Natural language to SQL (Claude-powered)
+- `/api/cip` - CIP code taxonomy
+- `/api/historic` - Historic data (1980-2008)
+- `/api/dictionary` - Data dictionary with AI Q&A
+
+### Production Architecture
+- nginx reverse proxy with SSL (Let's Encrypt)
+- systemd service (`ipeds-api.service`)
+- Docker PostgreSQL with pgvector + PostGIS
+- JWT auth with HTTP-only refresh cookies

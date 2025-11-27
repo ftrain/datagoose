@@ -227,6 +227,25 @@ CREATE INDEX idx_power_plants_country ON power_plants(country_code);
 CREATE INDEX idx_power_plants_fuel ON power_plants(primary_fuel);
 ```
 
+## Deployed Projects
+
+### IPEDS (https://ipeds.bkwaffles.com)
+
+The IPEDS project is fully deployed and serves as a reference implementation:
+
+- **Branch**: `projects/ipeds`
+- **Server**: Digital Ocean droplet (bkwaffles.com, 204.48.22.228)
+- **Stack**: nginx + systemd + Docker PostgreSQL
+- **Database**: 44GB with pgvector, PostGIS, pg_trgm
+
+Key features:
+- 134M+ records spanning 1980-2024
+- Vector similarity search for institutions
+- Natural language to SQL queries (Claude-powered)
+- Data dictionary with AI Q&A
+
+See `projects/ipeds/CLAUDE.md` for detailed deployment docs.
+
 ## Git Workflow
 
 ### Branch Strategy
@@ -234,7 +253,7 @@ CREATE INDEX idx_power_plants_fuel ON power_plants(primary_fuel);
 ```
 main                    # Framework only, always stable
 ├── projects/power-plants    # Power plants project
-├── projects/ipeds           # IPEDS education data
+├── projects/ipeds           # IPEDS education data (DEPLOYED)
 └── projects/<new-project>   # Each project gets its own branch
 ```
 

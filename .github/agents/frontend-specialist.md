@@ -351,3 +351,27 @@ export function QueryPage() {
 - **Always do:** Type all props and API responses, use TanStack Query
 - **Ask first:** Adding new dependencies, creating custom components
 - **Never do:** Write custom CSS (use Tailwind), skip TypeScript types, ignore accessibility
+
+## IPEDS Project Reference
+
+The IPEDS project is deployed and serves as a reference implementation:
+
+- **Live site**: https://ipeds.bkwaffles.com
+- **Project path**: `projects/ipeds/ui/`
+- **Branch**: `projects/ipeds`
+
+### Key Pages Implemented
+- `/` - Dashboard with overview stats
+- `/explore` - Interactive data explorer
+- `/institutions/:unitid` - Institution detail with trends
+- `/programs` - CIP code browser with search
+- `/queries` - NL-to-SQL query interface (auth required)
+- `/dictionary` - Data dictionary with AI Q&A
+- `/historic` - 40-year enrollment/completions trends
+
+### Key Patterns Used
+- `@tanstack/react-query` for data fetching
+- `authFetch` helper for authenticated requests with token refresh
+- shadcn/ui `Card`, `Table`, `Chart`, `Tabs` throughout
+- Responsive grid layouts for dashboard cards
+- URL state sync for filters (useSearchParams)
